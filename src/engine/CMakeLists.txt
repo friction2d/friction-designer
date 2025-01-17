@@ -23,6 +23,14 @@ include(ProcessorCount)
 
 ProcessorCount(N)
 
+if(NOT APPLE)
+    if(UNIX AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        message(FATAL_ERROR "Only Clang is supported.")
+    elseif(WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        message(FATAL_ERROR "Only MSVC is supported.")
+    endif()
+endif()
+
 option(USE_SKIA_SYSTEM_LIBS "Use skia (third-party) system libraries on Linux" ON)
 option(LINUX_DEPLOY "Linux Deploy" OFF)
 option(MAC_DEPLOY "Mac Deploy" OFF)
@@ -31,12 +39,27 @@ option(SYNC_SKIA_DEPS "Sync third-party depends" ON)
 set(SKIA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/skia")
 set(SKIA_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/skia")
 
+if(UNIX AND NOT APPLE)
+    find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
+endif()
+
 if(APPLE)
     set(USE_SKIA_SYSTEM_LIBS OFF)
 endif()
 
 if(${USE_SKIA_SYSTEM_LIBS} AND UNIX)
     set(SKIA_ENABLE_EXTERNAL "true")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(EXPAT REQUIRED expat)
+    pkg_check_modules(FREETYPE REQUIRED freetype2)
+    pkg_check_modules(JPEG REQUIRED libjpeg)
+    pkg_check_modules(PNG REQUIRED libpng)
+    pkg_check_modules(WEBP REQUIRED libwebp)
+    pkg_check_modules(WEBPMUX REQUIRED libwebpmux)
+    pkg_check_modules(WEBPDEMUX REQUIRED libwebpdemux)
+    pkg_check_modules(ZLIB REQUIRED zlib)
+    pkg_check_modules(ICU REQUIRED icu-i18n)
+    pkg_check_modules(HARFBUZZ REQUIRED harfbuzz)
 else()
     set(SKIA_ENABLE_EXTERNAL "false")
 endif()
@@ -50,7 +73,7 @@ if(WIN32)
     else()
         set(SKIA_UPDATE_CMD :)
     endif()
-    set(SKIA_ARGS "target_os=\"windows\" host_os=\"win\" current_os=\"win\" target_cpu=\"x64\" is_component_build=true")
+    set(SKIA_ARGS "target_os=\"windows\" host_os=\"win\" current_os=\"win\" target_cpu=\"x64\"")
     set(SKIA_ARGS "${SKIA_ARGS} clang_win=\"C:\\Program Files\\LLVM\" cc=\"clang-cl\" cxx=\"clang-cl\"")
     set(SKIA_ARGS "${SKIA_ARGS} extra_cflags=[\"-Wno-error\",\"/MD\",\"/O2\"]")
 else()
@@ -68,7 +91,6 @@ else()
     set(SKIA_ARGS "ar=\"${CMAKE_AR}\" cc=\"${CMAKE_C_COMPILER}\" cxx=\"${CMAKE_CXX_COMPILER}\"")
     if(UNIX AND NOT APPLE)
         set(SKIA_ARGS "${SKIA_ARGS} skia_use_egl=true")
-        set(SKIA_ARGS "${SKIA_ARGS} is_component_build=true")
         if (${LINUX_DEPLOY})
             set(SKIA_ARGS "${SKIA_ARGS} extra_cflags=[\"-Wno-error\"]")
         else()
@@ -122,17 +144,3 @@ ExternalProject_Add(
     USES_TERMINAL_CONFIGURE true
     USES_TERMINAL_BUILD true
 )
-
-if(UNIX AND NOT APPLE)
-    include(GNUInstallDirs)
-    install(
-        FILES
-        ${SKIA_BUILD_DIR}/libskia.friction.so
-        DESTINATION
-        ${CMAKE_INSTALL_LIBDIR}
-    )
-endif()
-
-if(WIN32)
-    add_custom_command(TARGET Engine POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SKIA_BUILD_DIR}/skia.dll.lib ${SKIA_BUILD_DIR}/skia.lib)
-endif()
