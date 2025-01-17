@@ -22,7 +22,6 @@ libavcodec-dev \
 libavformat-dev \
 libavutil-dev \
 libqscintilla2-qt5-dev \
-libquazip1-qt5-dev \
 libqt5opengl5-dev \
 libqt5svg5-dev \
 libswresample-dev \
@@ -41,8 +40,17 @@ libpng-dev \
 libwebp-dev \
 zlib1g-dev \
 libicu-dev \
-libharfbuzz-dev
+libharfbuzz-dev \
+libgl1-mesa-dev \
+libegl1-mesa-dev \
+libgles2-mesa-dev
+LSB=`lsb_release -c | awk '{print $2}'`
+if [ "${LSB}" = "jammy" ]; then
+    sudo apt install -y libquazip5-dev
+else
+    sudo apt install -y libquazip1-qt5-dev
 fi
+fi # APT=1
 
 if [ "${CI}" = 1 ]; then
     git submodule update -i --recursive
@@ -56,10 +64,6 @@ CWD=`pwd`
 MKJOBS=${MKJOBS:-4}
 COMMIT=`git rev-parse --short=8 HEAD`
 BRANCH=`git rev-parse --abbrev-ref HEAD`
-
-if [ "${BRANCH}" = "main" ]; then
-    BRANCH=""
-fi
 
 cd ${CWD}
 rm -rf build-ci || true
